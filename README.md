@@ -73,7 +73,7 @@ Acesse **Settings → Secrets and variables → Actions** neste repositório e c
 
 | Nome | Valor |
 |------|-------|
-| `DEPLOY_TOKEN` | Personal Access Token (classic) com escopo `repo` para este repositório |
+| `DEPLOY_TOKEN` | Personal Access Token com escopo `contents: write` (fine-grained) ou escopo `repo` (classic) para este repositório |
 
 Esse token é usado pelos workflows de sincronização para fazer push nas branches de ambiente.
 
@@ -88,7 +88,7 @@ Em cada um desses repositórios, crie o secret:
 
 | Nome | Valor |
 |------|-------|
-| `DEPLOY_REPO_TOKEN` | Personal Access Token (classic) com escopo `repo` para **XColor-Deploy** |
+| `DEPLOY_REPO_TOKEN` | Personal Access Token com escopo `actions: write` (fine-grained) ou escopo `repo` (classic) para **XColor-Deploy** — apenas para disparar `repository_dispatch` |
 
 ### 4. Execução manual (opcional)
 
@@ -104,3 +104,7 @@ Você pode disparar a sincronização manualmente a qualquer momento em
 | XColor-Deploy | `DEPLOY_TOKEN` | Permite que os workflows façam push nas branches deste repo |
 | XColor-front | `DEPLOY_REPO_TOKEN` | Permite disparar `repository_dispatch` em XColor-Deploy |
 | XColor-back | `DEPLOY_REPO_TOKEN` | Permite disparar `repository_dispatch` em XColor-Deploy |
+
+> **Permissões mínimas recomendadas:**
+> - `DEPLOY_TOKEN` → fine-grained PAT com `Contents: Read and write` para XColor-Deploy (ou classic PAT com escopo `repo`)
+> - `DEPLOY_REPO_TOKEN` → fine-grained PAT com `Actions: Write` para XColor-Deploy (ou classic PAT com escopo `repo`)

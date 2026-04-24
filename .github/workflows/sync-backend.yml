@@ -18,6 +18,8 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read  # GITHUB_TOKEN is not used for write operations; pushes use DEPLOY_TOKEN
 
     steps:
       - name: Determine target branch
@@ -58,7 +60,10 @@ jobs:
           BACKEND_REPO: https://github.com/devlucasvcarvalho/XColor-back.git
         run: |
           # Clone the source branch of the backend repository
-          git clone --depth 1 --branch "$BRANCH" "$BACKEND_REPO" /tmp/XColor-back
+          if ! git clone --depth 1 --branch "$BRANCH" "$BACKEND_REPO" /tmp/XColor-back; then
+            echo "::error::Failed to clone branch '$BRANCH' from $BACKEND_REPO. Make sure the branch exists in XColor-back."
+            exit 1
+          fi
 
           # Replace the backend/ directory with the latest content
           rm -rf backend/
