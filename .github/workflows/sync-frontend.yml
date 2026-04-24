@@ -1,0 +1,82 @@
+name: Sync Frontend
+
+on:
+  repository_dispatch:
+    types: [frontend-push]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to sync (dev / test / production)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - test
+          - production
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read  # GITHUB_TOKEN is not used for write operations; pushes use DEPLOY_TOKEN
+
+    steps:
+      - name: Determine target branch
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            BRANCH="${{ github.event.client_payload.branch }}"
+          else
+            BRANCH="${{ inputs.branch }}"
+          fi
+
+          # Normalize to lowercase
+          BRANCH=$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]')
+
+          # Validate allowed branches
+          if [[ "$BRANCH" != "dev" && "$BRANCH" != "test" && "$BRANCH" != "production" ]]; then
+            echo "::error::Invalid branch '$BRANCH'. Must be one of: dev, test, production"
+            exit 1
+          fi
+
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout XColor-Deploy on target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.vars.outputs.branch }}
+          fetch-depth: 0
+          token: ${{ secrets.DEPLOY_TOKEN }}
+
+      - name: Configure Git identity
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Clone XColor-front and sync files
+        env:
+          BRANCH: ${{ steps.vars.outputs.branch }}
+          FRONTEND_REPO: https://github.com/devlucasvcarvalho/XColor-front.git
+        run: |
+          # Clone the source branch of the frontend repository
+          if ! git clone --depth 1 --branch "$BRANCH" "$FRONTEND_REPO" /tmp/XColor-front; then
+            echo "::error::Failed to clone branch '$BRANCH' from $FRONTEND_REPO. Make sure the branch exists in XColor-front."
+            exit 1
+          fi
+
+          # Replace the frontend/ directory with the latest content
+          rm -rf frontend/
+          mkdir -p frontend
+          cp -r /tmp/XColor-front/. frontend/
+          rm -rf frontend/.git
+
+          # Commit and push only if there are actual changes
+          git add frontend/
+          if git diff --staged --quiet; then
+            echo "No changes detected — nothing to commit."
+          else
+            COMMIT_SHA=$(git -C /tmp/XColor-front rev-parse --short HEAD)
+            git commit -m "sync(frontend): update from XColor-front/$BRANCH @ $COMMIT_SHA"
+            git push origin "$BRANCH"
+          fi
